@@ -3,32 +3,17 @@ import pandas as pd
 import simplekml
 from io import BytesIO
 import zipfile
-import math
-
-def calculate_boundary(lat, lon, radius_meters=250):
-    """Menghasilkan koordinat boundary lingkaran 250m dari titik ODP"""
-    boundary_points = []
-    for angle in range(0, 360, 10):  # Setiap 10 derajat
-        # Formula perhitungan titik boundary (approximation)
-        dx = radius_meters * 0.0000089 * math.cos(math.radians(angle))
-        dy = radius_meters * 0.0000089 * math.sin(math.radians(angle))
-        boundary_points.append((lon + dx, lat + dy))
-    return boundary_points
 
 def create_kml_structure(kml, project_name):
-    """Membuat struktur KML dengan boundary"""
-    # Styles
+    """Membuat struktur KML persis seperti contoh"""
+    # Style untuk ODP
     odp_style = simplekml.Style()
     odp_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
     odp_style.iconstyle.scale = 1.2
     
+    # Style untuk Household
     house_style = simplekml.Style()
     house_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png"
-    
-    boundary_style = simplekml.Style()
-    boundary_style.linestyle.color = simplekml.Color.red
-    boundary_style.linestyle.width = 2
-    boundary_style.polystyle.color = simplekml.Color.changealphaint(50, simplekml.Color.green)
 
     # Folder utama
     main_folder = kml.newfolder(name=f"{project_name}.kml")
@@ -37,22 +22,52 @@ def create_kml_structure(kml, project_name):
     # Folder EXISTING
     existing_folder = main_folder.newfolder(name="EXISTING")
     existing_folder.open = 1
+
+    # Subfolder EXISTING
     odp_folder = existing_folder.newfolder(name="ODP")
     odp_folder.open = 1
+    
+    existing_folder.newfolder(name="TIANG").visibility = 0
+    existing_folder.newfolder(name="DISTRIBUSI").visibility = 0
+    existing_folder.newfolder(name="BOUNDARY").visibility = 0
+    existing_folder.newfolder(name="ODC").visibility = 0
+    existing_folder.newfolder(name="CLOSURE").visibility = 0
+    existing_folder.newfolder(name="FEEDER").visibility = 0
 
-    # Folder BOUNDARY (untuk lingkaran 250m)
-    boundary_folder = main_folder.newfolder(name="BOUNDARY")
+    # Folder NEW PLANING (bukan PLANNING)
+    new_planing_folder = main_folder.newfolder(name="NEW PLANING")
+    new_planing_folder.visibility = 0
+    
+    new_planing_folder.newfolder(name="ODP").visibility = 0
+    new_planing_folder.newfolder(name="TIANG").visibility = 0
+    new_planing_folder.newfolder(name="DISTRIBUSI").visibility = 0
+    
+    boundary_folder = new_planing_folder.newfolder(name="BOUNDARY")
+    boundary_folder.visibility = 0
     boundary_folder.open = 1
+    
+    new_planing_folder.newfolder(name="ODC").visibility = 0
+    
+    feeder_folder = new_planing_folder.newfolder(name="FEEDER")
+    feeder_folder.visibility = 0
+    feeder_folder.open = 1
+    
+    closure_folder = new_planing_folder.newfolder(name="CLOSURE")
+    closure_folder.visibility = 0
+    closure_folder.open = 1
 
-    # Folder HOUSEHOLD
+    # Folder BOUNDARY tambahan
+    main_folder.newfolder(name="BOUNDARY").visibility = 0
+
+    # Folder HOUSHOLD (bukan HOUSEHOLD)
     household_folder = main_folder.newfolder(name="HOUSHOLD")
     household_folder.open = 1
 
-    return odp_folder, household_folder, boundary_folder, odp_style, house_style, boundary_style
+    return odp_folder, household_folder, odp_style, house_style
 
 def main():
-    st.title("Konversi Excel ke KML + Boundary 250m")
-    st.write("Upload file Excel untuk generate KML dengan boundary coverage")
+    st.title("Konversi Excel ke KML (Struktur Presisi)")
+    st.write("Upload file Excel untuk menghasilkan KML dengan struktur spesifik")
 
     uploaded_file = st.file_uploader("Pilih file Excel", type=["xlsx", "xls"])
 
@@ -75,47 +90,36 @@ def main():
                 
                 for i, project_name in enumerate(projects):
                     kml = simplekml.Kml()
-                    odp_folder, household_folder, boundary_folder, odp_style, house_style, boundary_style = create_kml_structure(kml, project_name)
+                    odp_folder, household_folder, odp_style, house_style = create_kml_structure(kml, project_name)
                     
+                    # Isi data
                     project_data = df[df['NAMA PROJECT'] == project_name]
                     
                     for _, row in project_data.iterrows():
                         # Placemark ODP
                         odp = odp_folder.newpoint(
                             name=row['ODP'],
-                            description=f"Deskripsi: {row['Deskripsi']}\nProject: {row['NAMA PROJECT']}"
+                            description=f"Deskripsi: {row['Deskripsi']}\n\nProject: {row['NAMA PROJECT']}"
                         )
                         odp.coords = [(row['LONG ODP'], row['LAT ODP'])]
                         odp.style = odp_style
+                        odp.open = 1
                         
                         # Placemark Household
                         house = household_folder.newpoint(name=row['name'])
                         house.coords = [(row['LONG PELANGGAN'], row['LAT PELANGGAN'])]
                         house.style = house_style
-                        
-                        # Boundary 250m dari ODP
-                        boundary_points = calculate_boundary(row['LAT ODP'], row['LONG ODP'])
-                        polygon = boundary_folder.newpolygon(
-                            name=f"Coverage {row['ODP']}",
-                            description=f"Radius 250m dari {row['ODP']} ke {row['name']}",
-                            outerboundaryis=boundary_points
-                        )
-                        polygon.style = boundary_style
+                        house.open = 1
                     
                     zip_file.writestr(f"{project_name}.kml", kml.kml())
                     progress_bar.progress((i + 1) / total_projects)
             
-            st.success(f"Berhasil generate {total_projects} KML dengan boundary!")
-            
-            # Preview contoh boundary
-            with st.expander("**Contoh Visualisasi Boundary**"):
-                st.image("https://i.imgur.com/J5qKZzL.png", width=400)
-                st.caption("Ilustrasi boundary 250m dari ODP ke pelanggan")
+            st.success(f"Berhasil membuat {total_projects} file KML!")
             
             st.download_button(
                 label="Download KML (ZIP)",
                 data=zip_buffer.getvalue(),
-                file_name="projects_with_boundary.zip",
+                file_name="projects_kml.zip",
                 mime="application/zip"
             )
             
