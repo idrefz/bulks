@@ -5,10 +5,10 @@ from io import BytesIO
 import zipfile
 
 def create_kml_structure(kml):
-    """Membuat struktur folder lengkap meski kosong"""
+    """Membuat struktur folder lengkap dan mengembalikan referensi folder yang diperlukan"""
     # Folder EXISTING dan subfoldernya
     existing = kml.newfolder(name="EXISTING")
-    existing.newfolder(name="ODP")
+    odp_folder = existing.newfolder(name="ODP")
     existing.newfolder(name="TIANG")
     existing.newfolder(name="DISTRIBUSI")
     existing.newfolder(name="BOUNDARY")
@@ -27,7 +27,9 @@ def create_kml_structure(kml):
     new_planning.newfolder(name="CLOSURE")
     
     # Folder HOUSEHOLD
-    kml.newfolder(name="HOUSEHOLD")
+    household_folder = kml.newfolder(name="HOUSEHOLD")
+    
+    return odp_folder, household_folder
 
 def main():
     st.title("Konversi Excel ke KML per Project")
@@ -53,21 +55,19 @@ def main():
                 
                 for i, project_name in enumerate(projects):
                     kml = simplekml.Kml()
-                    create_kml_structure(kml)  # Buat struktur dasar
+                    odp_folder, household_folder = create_kml_structure(kml)
                     
                     # Filter data untuk project ini
                     project_data = df[df['NAMA PROJECT'] == project_name]
                     
-                    # Isi data ODP ke folder EXISTING > ODP
-                    odp_folder = kml.document.folder[0].folder[0]  # EXISTING > ODP
+                    # Isi data ODP
                     for _, row in project_data.iterrows():
                         odp_folder.newpoint(
                             name=row['ODP'],
                             coords=[(row['LONG ODP'], row['LAT ODP'])]
                         )
                     
-                    # Isi data pelanggan ke HOUSEHOLD
-                    household_folder = kml.document.folder[2]  # HOUSEHOLD
+                    # Isi data pelanggan
                     for _, row in project_data.iterrows():
                         household_folder.newpoint(
                             name=row['name'],
