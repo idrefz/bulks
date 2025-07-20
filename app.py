@@ -4,11 +4,38 @@ import simplekml
 from io import BytesIO
 import zipfile
 
-def main():
-    st.title("Konversi Excel ke KML dengan Deskripsi ODP")
-    st.write("Upload file Excel untuk menghasilkan KML dengan deskripsi lengkap")
+def create_full_structure(kml):
+    """Membuat struktur folder lengkap dengan semua subfolder"""
+    # Folder EXISTING dan semua subfoldernya
+    existing = kml.newfolder(name="EXISTING")
+    existing.newfolder(name="ODP")
+    existing.newfolder(name="TIANG")
+    existing.newfolder(name="DISTRIBUSI")
+    existing.newfolder(name="BOUNDARY")
+    existing.newfolder(name="ODC")
+    existing.newfolder(name="CLOSURE")
+    existing.newfolder(name="FEEDER")
+    
+    # Folder NEW PLANNING dan semua subfoldernya
+    new_planning = kml.newfolder(name="NEW PLANNING")
+    new_planning.newfolder(name="ODP")
+    new_planning.newfolder(name="TIANG")
+    new_planning.newfolder(name="DISTRIBUSI")
+    new_planning.newfolder(name="BOUNDARY")
+    new_planning.newfolder(name="ODC")
+    new_planning.newfolder(name="FEEDER")
+    new_planning.newfolder(name="CLOSURE")
+    
+    # Folder HOUSEHOLD
+    kml.newfolder(name="HOUSEHOLD")
+    
+    return kml
 
-    # URL ikon dari Google Maps
+def main():
+    st.title("Konversi Excel ke KML (Struktur Lengkap)")
+    st.write("Upload file Excel untuk menghasilkan KML dengan struktur folder lengkap")
+
+    # URL ikon
     ODP_ICON = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
     HOUSE_ICON = "http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png"
 
@@ -21,7 +48,7 @@ def main():
                               'name', 'LAT PELANGGAN', 'LONG PELANGGAN']
             
             if not all(col in df.columns for col in required_columns):
-                st.error(f"File Excel harus memiliki kolom: {', '.join(required_columns)}")
+                st.error(f"Kolom wajib: {', '.join(required_columns)}")
                 return
 
             zip_buffer = BytesIO()
@@ -33,65 +60,58 @@ def main():
                 
                 for i, project_name in enumerate(projects):
                     kml = simplekml.Kml()
+                    kml = create_full_structure(kml)  # Buat struktur lengkap
                     
-                    # Folder EXISTING > ODP
-                    existing_folder = kml.newfolder(name="EXISTING")
-                    odp_folder = existing_folder.newfolder(name="ODP")
+                    # Dapatkan referensi folder yang akan diisi
+                    odp_folder = kml.document.folder[0].folder[0]  # EXISTING > ODP
+                    household_folder = kml.document.folder[2]       # HOUSEHOLD
                     
-                    # Folder HOUSEHOLD
-                    household_folder = kml.newfolder(name="HOUSEHOLD")
-
-                    # Filter data untuk project ini
+                    # Isi data untuk project ini
                     project_data = df[df['NAMA PROJECT'] == project_name]
                     
-                    # Isi data ODP dengan deskripsi
                     for _, row in project_data.iterrows():
-                        # Placemark ODP dengan deskripsi
+                        # Tambahkan ODP
                         odp = odp_folder.newpoint(
                             name=row['ODP'],
-                            description=f"Deskripsi: {row['Deskripsi']}\n\nProject: {row['NAMA PROJECT']}"
+                            description=f"Deskripsi: {row['Deskripsi']}\nProject: {row['NAMA PROJECT']}"
                         )
                         odp.coords = [(row['LONG ODP'], row['LAT ODP'])]
                         odp.style.iconstyle.icon.href = ODP_ICON
-                        odp.style.iconstyle.scale = 1.2
                         
-                        # Placemark Pelanggan
+                        # Tambahkan Pelanggan
                         house = household_folder.newpoint(name=row['name'])
                         house.coords = [(row['LONG PELANGGAN'], row['LAT PELANGGAN'])]
                         house.style.iconstyle.icon.href = HOUSE_ICON
-                        house.style.iconstyle.scale = 1.0
                     
                     zip_file.writestr(f"{project_name}.kml", kml.kml())
                     progress_bar.progress((i + 1) / total_projects)
             
-            st.success(f"Berhasil mengkonversi {total_projects} project!")
+            st.success(f"Berhasil membuat {total_projects} file KML!")
             
-            # Tampilkan contoh output
-            with st.expander("Contoh Struktur KML"):
+            # Tampilkan contoh struktur
+            with st.expander("**Struktur Folder KML**"):
                 st.code("""
-                <Placemark>
-                    <name>ODP-IBU-FAN/036</name>
-                    <description>
-                        Deskripsi: EXPAND 1:8
-                        Project: BNT,IBU_PT2_SUDRAJAT WOO15920444,VA EXPAND
-                    </description>
-                    <Point>
-                        <coordinates>105.855777,-6.49482</coordinates>
-                    </Point>
-                    <Style>
-                        <IconStyle>
-                            <Icon>
-                                <href>http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png</href>
-                            </Icon>
-                        </IconStyle>
-                    </Style>
-                </Placemark>
-                """, language='xml')
+                EXISTING/
+                ├── ODP/         (berisi placemark ODP)
+                ├── TIANG/       (kosong)
+                ├── DISTRIBUSI/  (kosong)
+                ├── BOUNDARY/    (kosong)
+                ├── ODC/         (kosong)
+                ├── CLOSURE/      (kosong)
+                └── FEEDER/       (kosong)
+                
+                NEW PLANNING/
+                ├── ODP/         (kosong)
+                ├── TIANG/       (kosong)
+                ├── ...         (dst)
+                
+                HOUSEHOLD/       (berisi placemark pelanggan)
+                """)
             
             st.download_button(
-                label="Download KML Files (ZIP)",
+                label="Download KML (ZIP)",
                 data=zip_buffer.getvalue(),
-                file_name="projects_with_descriptions.zip",
+                file_name="projects_full_structure.zip",
                 mime="application/zip"
             )
             
