@@ -6,12 +6,13 @@ import zipfile
 
 def create_kml_structure(kml, project_name):
     """Membuat struktur KML persis seperti contoh"""
-    # Style untuk ODP dan Household
-    odp_style = kml.newstyle(id="odp_style")
+    # Style untuk ODP
+    odp_style = simplekml.Style()
     odp_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
     odp_style.iconstyle.scale = 1.2
     
-    house_style = kml.newstyle(id="house_style")
+    # Style untuk Household
+    house_style = simplekml.Style()
     house_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png"
 
     # Folder utama
