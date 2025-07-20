@@ -3,6 +3,16 @@ import pandas as pd
 import simplekml
 from io import BytesIO
 import zipfile
+import base64
+
+# Fungsi untuk encode gambar ke base64 (untuk custom icon)
+def get_image_base64(path):
+    with open(path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
+# Load custom icons
+HOME_ICON = get_image_base64("homegardenbusiness.png")
+ODP_ICON = get_image_base64("ltblu-stars.png")
 
 def main():
     st.title("Konversi Excel ke KML per Project")
@@ -40,17 +50,21 @@ def main():
                     household_folder = kml.newfolder(name="HOUSEHOLD")
                     
                     for _, row in group.iterrows():
-                        # Tambahkan ODP
-                        odp_folder.newpoint(
+                        # Tambahkan ODP dengan custom icon
+                        odp = odp_folder.newpoint(
                             name=row['ODP'],
                             coords=[(row['LONG ODP'], row['LAT ODP'])]
                         )
+                        odp.style.iconstyle.icon.href = f"data:image/png;base64,{ODP_ICON}"
+                        odp.style.iconstyle.scale = 1.2
                         
-                        # Tambahkan Pelanggan
-                        household_folder.newpoint(
+                        # Tambahkan Pelanggan dengan custom icon
+                        home = household_folder.newpoint(
                             name=row['name'],
                             coords=[(row['LONG PELANGGAN'], row['LAT PELANGGAN'])]
                         )
+                        home.style.iconstyle.icon.href = f"data:image/png;base64,{HOME_ICON}"
+                        home.style.iconstyle.scale = 1.2
                     
                     # Simpan KML ke ZIP
                     kml_data = kml.kml().encode('utf-8')
@@ -71,6 +85,14 @@ def main():
             # Tampilkan preview data
             st.subheader("Preview Data")
             st.dataframe(df.head())
+            
+            # Tampilkan contoh icon
+            st.subheader("Ikon yang Digunakan")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image("homegardenbusiness.png", caption="Ikon Household", width=100)
+            with col2:
+                st.image("ltblu-stars.png", caption="Ikon ODP", width=100)
             
         except Exception as e:
             st.error(f"Terjadi error: {str(e)}")
