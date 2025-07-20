@@ -4,40 +4,69 @@ import simplekml
 from io import BytesIO
 import zipfile
 
-def create_full_structure(kml):
-    """Membuat struktur folder lengkap dengan semua subfolder"""
-    # Folder EXISTING dan semua subfoldernya
-    existing = kml.newfolder(name="EXISTING")
-    existing.newfolder(name="ODP")
-    existing.newfolder(name="TIANG")
-    existing.newfolder(name="DISTRIBUSI")
-    existing.newfolder(name="BOUNDARY")
-    existing.newfolder(name="ODC")
-    existing.newfolder(name="CLOSURE")
-    existing.newfolder(name="FEEDER")
+def create_kml_structure(kml, project_name):
+    """Membuat struktur KML persis seperti contoh"""
+    # Style untuk ODP dan Household
+    odp_style = kml.newstyle(id="odp_style")
+    odp_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
+    odp_style.iconstyle.scale = 1.2
     
-    # Folder NEW PLANNING dan semua subfoldernya
-    new_planning = kml.newfolder(name="NEW PLANNING")
-    new_planning.newfolder(name="ODP")
-    new_planning.newfolder(name="TIANG")
-    new_planning.newfolder(name="DISTRIBUSI")
-    new_planning.newfolder(name="BOUNDARY")
-    new_planning.newfolder(name="ODC")
-    new_planning.newfolder(name="FEEDER")
-    new_planning.newfolder(name="CLOSURE")
+    house_style = kml.newstyle(id="house_style")
+    house_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png"
+
+    # Folder utama
+    main_folder = kml.newfolder(name=f"{project_name}.kml")
+    main_folder.open = 1
+
+    # Folder EXISTING
+    existing_folder = main_folder.newfolder(name="EXISTING")
+    existing_folder.open = 1
+
+    # Subfolder EXISTING
+    odp_folder = existing_folder.newfolder(name="ODP")
+    odp_folder.open = 1
     
-    # Folder HOUSEHOLD
-    kml.newfolder(name="HOUSEHOLD")
+    existing_folder.newfolder(name="TIANG").visibility = 0
+    existing_folder.newfolder(name="DISTRIBUSI").visibility = 0
+    existing_folder.newfolder(name="BOUNDARY").visibility = 0
+    existing_folder.newfolder(name="ODC").visibility = 0
+    existing_folder.newfolder(name="CLOSURE").visibility = 0
+    existing_folder.newfolder(name="FEEDER").visibility = 0
+
+    # Folder NEW PLANING (bukan PLANNING)
+    new_planing_folder = main_folder.newfolder(name="NEW PLANING")
+    new_planing_folder.visibility = 0
     
-    return kml
+    new_planing_folder.newfolder(name="ODP").visibility = 0
+    new_planing_folder.newfolder(name="TIANG").visibility = 0
+    new_planing_folder.newfolder(name="DISTRIBUSI").visibility = 0
+    
+    boundary_folder = new_planing_folder.newfolder(name="BOUNDARY")
+    boundary_folder.visibility = 0
+    boundary_folder.open = 1
+    
+    new_planing_folder.newfolder(name="ODC").visibility = 0
+    
+    feeder_folder = new_planing_folder.newfolder(name="FEEDER")
+    feeder_folder.visibility = 0
+    feeder_folder.open = 1
+    
+    closure_folder = new_planing_folder.newfolder(name="CLOSURE")
+    closure_folder.visibility = 0
+    closure_folder.open = 1
+
+    # Folder BOUNDARY tambahan
+    main_folder.newfolder(name="BOUNDARY").visibility = 0
+
+    # Folder HOUSHOLD (bukan HOUSEHOLD)
+    household_folder = main_folder.newfolder(name="HOUSHOLD")
+    household_folder.open = 1
+
+    return odp_folder, household_folder, odp_style, house_style
 
 def main():
-    st.title("Konversi Excel ke KML (Struktur Lengkap)")
-    st.write("Upload file Excel untuk menghasilkan KML dengan struktur folder lengkap")
-
-    # URL ikon
-    ODP_ICON = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
-    HOUSE_ICON = "http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png"
+    st.title("Konversi Excel ke KML (Struktur Presisi)")
+    st.write("Upload file Excel untuk menghasilkan KML dengan struktur spesifik")
 
     uploaded_file = st.file_uploader("Pilih file Excel", type=["xlsx", "xls"])
 
@@ -60,58 +89,36 @@ def main():
                 
                 for i, project_name in enumerate(projects):
                     kml = simplekml.Kml()
-                    kml = create_full_structure(kml)  # Buat struktur lengkap
+                    odp_folder, household_folder, odp_style, house_style = create_kml_structure(kml, project_name)
                     
-                    # Dapatkan referensi folder yang akan diisi
-                    odp_folder = kml.document.folder[0].folder[0]  # EXISTING > ODP
-                    household_folder = kml.document.folder[2]       # HOUSEHOLD
-                    
-                    # Isi data untuk project ini
+                    # Isi data
                     project_data = df[df['NAMA PROJECT'] == project_name]
                     
                     for _, row in project_data.iterrows():
-                        # Tambahkan ODP
+                        # Placemark ODP
                         odp = odp_folder.newpoint(
                             name=row['ODP'],
-                            description=f"Deskripsi: {row['Deskripsi']}\nProject: {row['NAMA PROJECT']}"
+                            description=f"Deskripsi: {row['Deskripsi']}\n\nProject: {row['NAMA PROJECT']}"
                         )
                         odp.coords = [(row['LONG ODP'], row['LAT ODP'])]
-                        odp.style.iconstyle.icon.href = ODP_ICON
+                        odp.style = odp_style
+                        odp.open = 1
                         
-                        # Tambahkan Pelanggan
+                        # Placemark Household
                         house = household_folder.newpoint(name=row['name'])
                         house.coords = [(row['LONG PELANGGAN'], row['LAT PELANGGAN'])]
-                        house.style.iconstyle.icon.href = HOUSE_ICON
+                        house.style = house_style
+                        house.open = 1
                     
                     zip_file.writestr(f"{project_name}.kml", kml.kml())
                     progress_bar.progress((i + 1) / total_projects)
             
             st.success(f"Berhasil membuat {total_projects} file KML!")
             
-            # Tampilkan contoh struktur
-            with st.expander("**Struktur Folder KML**"):
-                st.code("""
-                EXISTING/
-                ├── ODP/         (berisi placemark ODP)
-                ├── TIANG/       (kosong)
-                ├── DISTRIBUSI/  (kosong)
-                ├── BOUNDARY/    (kosong)
-                ├── ODC/         (kosong)
-                ├── CLOSURE/      (kosong)
-                └── FEEDER/       (kosong)
-                
-                NEW PLANNING/
-                ├── ODP/         (kosong)
-                ├── TIANG/       (kosong)
-                ├── ...         (dst)
-                
-                HOUSEHOLD/       (berisi placemark pelanggan)
-                """)
-            
             st.download_button(
                 label="Download KML (ZIP)",
                 data=zip_buffer.getvalue(),
-                file_name="projects_full_structure.zip",
+                file_name="projects_kml.zip",
                 mime="application/zip"
             )
             
