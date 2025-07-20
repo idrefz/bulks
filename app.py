@@ -5,8 +5,8 @@ from io import BytesIO
 import zipfile
 
 def main():
-    st.title("Konversi Excel ke KML dengan Ikon Khusus")
-    st.write("Upload file Excel untuk menghasilkan KML dengan ikon custom")
+    st.title("Konversi Excel ke KML dengan Deskripsi ODP")
+    st.write("Upload file Excel untuk menghasilkan KML dengan deskripsi lengkap")
 
     # URL ikon dari Google Maps
     ODP_ICON = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
@@ -17,7 +17,8 @@ def main():
     if uploaded_file is not None:
         try:
             df = pd.read_excel(uploaded_file)
-            required_columns = ['NAMA PROJECT', 'ODP', 'LAT ODP', 'LONG ODP', 'name', 'LAT PELANGGAN', 'LONG PELANGGAN']
+            required_columns = ['NAMA PROJECT', 'Deskripsi', 'ODP', 'LAT ODP', 'LONG ODP', 
+                              'name', 'LAT PELANGGAN', 'LONG PELANGGAN']
             
             if not all(col in df.columns for col in required_columns):
                 st.error(f"File Excel harus memiliki kolom: {', '.join(required_columns)}")
@@ -43,13 +44,16 @@ def main():
                     # Filter data untuk project ini
                     project_data = df[df['NAMA PROJECT'] == project_name]
                     
-                    # Isi data ODP dengan ikon khusus
+                    # Isi data ODP dengan deskripsi
                     for _, row in project_data.iterrows():
-                        # Placemark ODP
-                        odp = odp_folder.newpoint(name=row['ODP'])
+                        # Placemark ODP dengan deskripsi
+                        odp = odp_folder.newpoint(
+                            name=row['ODP'],
+                            description=f"Deskripsi: {row['Deskripsi']}\n\nProject: {row['NAMA PROJECT']}"
+                        )
                         odp.coords = [(row['LONG ODP'], row['LAT ODP'])]
                         odp.style.iconstyle.icon.href = ODP_ICON
-                        odp.style.iconstyle.scale = 1.2  # Sesuaikan ukuran ikon
+                        odp.style.iconstyle.scale = 1.2
                         
                         # Placemark Pelanggan
                         house = household_folder.newpoint(name=row['name'])
@@ -62,17 +66,32 @@ def main():
             
             st.success(f"Berhasil mengkonversi {total_projects} project!")
             
-            # Tampilkan preview ikon
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(ODP_ICON, caption="Ikon ODP", width=50)
-            with col2:
-                st.image(HOUSE_ICON, caption="Ikon Household", width=50)
+            # Tampilkan contoh output
+            with st.expander("Contoh Struktur KML"):
+                st.code("""
+                <Placemark>
+                    <name>ODP-IBU-FAN/036</name>
+                    <description>
+                        Deskripsi: EXPAND 1:8
+                        Project: BNT,IBU_PT2_SUDRAJAT WOO15920444,VA EXPAND
+                    </description>
+                    <Point>
+                        <coordinates>105.855777,-6.49482</coordinates>
+                    </Point>
+                    <Style>
+                        <IconStyle>
+                            <Icon>
+                                <href>http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png</href>
+                            </Icon>
+                        </IconStyle>
+                    </Style>
+                </Placemark>
+                """, language='xml')
             
             st.download_button(
                 label="Download KML Files (ZIP)",
                 data=zip_buffer.getvalue(),
-                file_name="projects_kml.zip",
+                file_name="projects_with_descriptions.zip",
                 mime="application/zip"
             )
             
