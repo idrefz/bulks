@@ -5,15 +5,11 @@ from io import BytesIO
 import zipfile
 
 def create_kml_structure(kml, project_name):
-    """Membuat struktur KML persis seperti contoh"""
+    """Membuat struktur KML dengan hanya folder ODP"""
     # Style untuk ODP
     odp_style = simplekml.Style()
     odp_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
     odp_style.iconstyle.scale = 1.2
-    
-    # Style untuk Household
-    house_style = simplekml.Style()
-    house_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png"
 
     # Folder utama
     main_folder = kml.newfolder(name=f"{project_name}.kml")
@@ -23,47 +19,15 @@ def create_kml_structure(kml, project_name):
     existing_folder = main_folder.newfolder(name="EXISTING")
     existing_folder.open = 1
 
-    # Subfolder EXISTING
+    # Hanya folder ODP yang tersisa
     odp_folder = existing_folder.newfolder(name="ODP")
     odp_folder.open = 1
-    
-    existing_folder.newfolder(name="TIANG").visibility = 0
-    existing_folder.newfolder(name="DISTRIBUSI").visibility = 0
-    existing_folder.newfolder(name="BOUNDARY").visibility = 0
-    existing_folder.newfolder(name="ODC").visibility = 0
-    existing_folder.newfolder(name="CLOSURE").visibility = 0
-    existing_folder.newfolder(name="FEEDER").visibility = 0
 
-    # Folder NEW PLANING (bukan PLANNING)
-    new_planing_folder = main_folder.newfolder(name="NEW PLANING")
-    new_planing_folder.visibility = 0
-    
-    new_planing_folder.newfolder(name="ODP").visibility = 0
-    new_planing_folder.newfolder(name="TIANG").visibility = 0
-    new_planing_folder.newfolder(name="DISTRIBUSI").visibility = 0
-    
-    boundary_folder = new_planing_folder.newfolder(name="BOUNDARY")
-    boundary_folder.visibility = 0
-    boundary_folder.open = 1
-    
-    new_planing_folder.newfolder(name="ODC").visibility = 0
-    
-    feeder_folder = new_planing_folder.newfolder(name="FEEDER")
-    feeder_folder.visibility = 0
-    feeder_folder.open = 1
-    
-    closure_folder = new_planing_folder.newfolder(name="CLOSURE")
-    closure_folder.visibility = 0
-    closure_folder.open = 1
-
-    # Folder BOUNDARY tambahan
-    main_folder.newfolder(name="BOUNDARY").visibility = 0
-
-    # Folder HOUSHOLD (bukan HOUSEHOLD)
+    # Folder HOUSHOLD (tetap dipertahankan)
     household_folder = main_folder.newfolder(name="HOUSHOLD")
     household_folder.open = 1
 
-    return odp_folder, household_folder, odp_style, house_style
+    return odp_folder, household_folder, odp_style
 
 def main():
     st.title("Konversi Excel ke KML (Struktur Presisi)")
@@ -90,7 +54,7 @@ def main():
                 
                 for i, project_name in enumerate(projects):
                     kml = simplekml.Kml()
-                    odp_folder, household_folder, odp_style, house_style = create_kml_structure(kml, project_name)
+                    odp_folder, household_folder, odp_style = create_kml_structure(kml, project_name)
                     
                     # Isi data
                     project_data = df[df['NAMA PROJECT'] == project_name]
@@ -108,7 +72,6 @@ def main():
                         # Placemark Household
                         house = household_folder.newpoint(name=row['name'])
                         house.coords = [(row['LONG PELANGGAN'], row['LAT PELANGGAN'])]
-                        house.style = house_style
                         house.open = 1
                     
                     zip_file.writestr(f"{project_name}.kml", kml.kml())
