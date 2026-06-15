@@ -4,34 +4,9 @@ import simplekml
 from io import BytesIO
 import zipfile
 
-def create_kml_structure(kml, project_name):
-    """Membuat struktur KML dengan hanya folder ODP"""
-    # Style untuk ODP
-    odp_style = simplekml.Style()
-    odp_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
-    odp_style.iconstyle.scale = 1.2
-
-    # Folder utama
-    main_folder = kml.newfolder(name=f"{project_name}.kml")
-    main_folder.open = 1
-
-    # Folder EXISTING
-    existing_folder = main_folder.newfolder(name="EXISTING")
-    existing_folder.open = 1
-
-    # Hanya folder ODP yang tersisa
-    odp_folder = existing_folder.newfolder(name="ODP")
-    odp_folder.open = 1
-
-    # Folder HOUSHOLD (tetap dipertahankan)
-    household_folder = main_folder.newfolder(name="HOUSHOLD")
-    household_folder.open = 1
-
-    return odp_folder, household_folder, odp_style
-
 def main():
-    st.title("Konversi Excel ke KML (Struktur Presisi)")
-    st.write("Upload file Excel untuk menghasilkan KML dengan struktur spesifik")
+    st.title("Konversi Excel ke KML (Tanpa Folder)")
+    st.write("Upload file Excel untuk menghasilkan KML tanpa struktur folder")
 
     uploaded_file = st.file_uploader("Pilih file Excel", type=["xlsx", "xls"])
 
@@ -54,25 +29,35 @@ def main():
                 
                 for i, project_name in enumerate(projects):
                     kml = simplekml.Kml()
-                    odp_folder, household_folder, odp_style = create_kml_structure(kml, project_name)
+                    
+                    # Style untuk ODP
+                    odp_style = simplekml.Style()
+                    odp_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/paddle/ltblu-stars.png"
+                    odp_style.iconstyle.scale = 1.2
+                    
+                    # Style untuk Household
+                    house_style = simplekml.Style()
+                    house_style.iconstyle.icon.href = "http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png"
                     
                     # Isi data
                     project_data = df[df['NAMA PROJECT'] == project_name]
                     
                     for _, row in project_data.iterrows():
-                        # Placemark ODP
-                        odp = odp_folder.newpoint(
+                        # Point ODP (tanpa folder)
+                        odp_point = kml.newpoint(
                             name=row['ODP'],
-                            description=f"Deskripsi: {row['Deskripsi']}\n\nProject: {row['NAMA PROJECT']}"
+                            description=f"Deskripsi: {row['Deskripsi']}\n\nProject: {row['NAMA PROJECT']}\n\nType: ODP"
                         )
-                        odp.coords = [(row['LONG ODP'], row['LAT ODP'])]
-                        odp.style = odp_style
-                        odp.open = 1
+                        odp_point.coords = [(row['LONG ODP'], row['LAT ODP'])]
+                        odp_point.style = odp_style
                         
-                        # Placemark Household
-                        house = household_folder.newpoint(name=row['name'])
-                        house.coords = [(row['LONG PELANGGAN'], row['LAT PELANGGAN'])]
-                        house.open = 1
+                        # Point Household (tanpa folder)
+                        house_point = kml.newpoint(
+                            name=row['name'],
+                            description=f"Project: {row['NAMA PROJECT']}\n\nType: Household"
+                        )
+                        house_point.coords = [(row['LONG PELANGGAN'], row['LAT PELANGGAN'])]
+                        house_point.style = house_style
                     
                     zip_file.writestr(f"{project_name}.kml", kml.kml())
                     progress_bar.progress((i + 1) / total_projects)
